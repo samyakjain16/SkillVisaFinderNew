@@ -1,0 +1,10 @@
+# Python virtual environment
+venv/
+.env
+__pycache__/
+*.pyc
+
+# Node.js dependencies
+node_modules/
+.next/
+out/

@@ -1,0 +1,43 @@
+# FastAPI and Web Server
+fastapi
+uvicorn[standard]
+python-multipart
+httpx
+
+# Environment and Settings Management
+python-dotenv
+pydantic
+pydantic-settings
+
+# Authentication and Security
+python-jose[cryptography]
+passlib[bcrypt]
+python-jose[cryptography]
+
+# Database and Supabase
+supabase
+postgrest
+
+# OpenAI Integration
+opena
+
+# Utilities
+python-dateutil
+email-validator
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+
+# Development Tools
+black
+isort
+flake8
+mypy
+
+# Production
+gunicorn>=21.2.0
+
+
+numpy

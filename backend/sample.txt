@@ -1,0 +1,4 @@
+Currently, extract applican data is called during visa assessment, we want to modify this and now, when a cv is uploaded, then two process can be simultaneausly done - 
+one which is currently taking place which is occupation suggestion and second process should be extract applicant data after content/text extractation is completed.
+
+Then, for now, we will just have following details extracted - Personal Information, Educaiotn Backgroud and Work experience
