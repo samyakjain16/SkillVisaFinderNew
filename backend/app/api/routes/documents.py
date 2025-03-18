@@ -9,6 +9,7 @@ from app.services.occupation_matcher import match_occupations
 from app.models.response import CVAnalysisResponse
 from app.services.auth_service import get_current_user
 from app.db.supabase_client import get_supabase_client
+from app.services.applicant_data_service import extract_and_save_applicant_data
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 @router.post("/upload-cv", response_model=CVAnalysisResponse)
@@ -118,3 +119,38 @@ async def get_latest_document(
         "occupation_matches": occupation_matches
     }
 
+
+@router.post("/{document_id}/extract-applicant-data")
+async def extract_applicant_data(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Extract applicant data from a document and save to the client record."""
+    
+    # Check if document exists and belongs to current user
+    supabase_client = get_supabase_client()
+    document_result = supabase_client.table("documents").select("*").eq("id", document_id).eq("user_id", current_user["id"]).execute()
+    
+    if not document_result.data or len(document_result.data) == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    document = document_result.data[0]
+    
+    # Check if document is linked to a client
+    if not document.get("client_id"):
+        raise HTTPException(status_code=400, detail="Document is not linked to a client")
+    
+    # Extract applicant data from the document text
+    try:
+        client_id = document["client_id"]
+        extracted_text = document["extracted_text"]
+        
+        # Extract and save applicant data
+        result = await extract_and_save_applicant_data(extracted_text, client_id)
+        
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to extract applicant data")
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error extracting applicant data: {str(e)}")

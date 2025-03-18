@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Add useEffect
 import { User } from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -51,6 +51,13 @@ export const PersonalInfoSection = ({ personalInfo, onUpdate }: PersonalInfoSect
       address: ''
     }
   });
+  
+  // Add useEffect to update formData when personalInfo changes
+  useEffect(() => {
+    if (personalInfo) {
+      setFormData(personalInfo);
+    }
+  }, [personalInfo]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

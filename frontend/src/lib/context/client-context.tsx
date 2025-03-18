@@ -5,6 +5,9 @@ import { useAuth } from './auth-context';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '@/lib/api';
 
+// src/lib/context/client-context.tsx
+// Update the Client type definition
+
 export type Client = {
   id: string;
   full_name: string;
@@ -13,6 +16,20 @@ export type Client = {
   date_of_birth?: string;
   passport_number?: string;
   nationality?: string;
+  
+  // Add these new fields
+  first_name?: string;
+  middle_name?: string;
+  last_name?: string;
+  gender?: string;
+  marital_status?: string;
+  passport_expiry?: string;
+  passport_issuing_country?: string;
+  address?: string;
+  
+  // Add fields for education and experience
+  education?: any[];
+  experience?: any[];
 };
 
 type ClientContextType = {
@@ -24,12 +41,13 @@ type ClientContextType = {
   createClient: (clientData: Omit<Client, 'id'>) => Promise<Client>;
   updateClient: (id: string, clientData: Partial<Client>) => Promise<Client>;
   refreshClients: () => Promise<void>;
+  refreshClientData: (clientId: string) => Promise<void>;
 };
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
 export function ClientProvider({ children }: { children: ReactNode }) {
-  const { user, isLoading: isAuthLoading } = useAuth(); //enw
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,8 +59,6 @@ export function ClientProvider({ children }: { children: ReactNode }) {
       fetchClients();
     }
   }, [user, isAuthLoading]);
-
-  
 
   const fetchClients = async () => {
     try {
@@ -118,6 +134,29 @@ export function ClientProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshClientData = async (clientId: string) => {
+    if (!clientId) return;
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      const clientData = await api.request(`/visa-assessment/clients/${clientId}`) as Client;
+      
+      // Update in clients list
+      setClients(prev => prev.map(c => c.id === clientId ? clientData : c));
+      
+      // Update selected client if it's the one being refreshed
+      if (selectedClient && selectedClient.id === clientId) {
+        setSelectedClient(clientData);
+      }
+    } catch (err: any) {
+      console.error('Error refreshing client data:', err);
+      setError(err.message || 'Failed to refresh client data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const refreshClients = fetchClients;
 
   return (
@@ -129,7 +168,8 @@ export function ClientProvider({ children }: { children: ReactNode }) {
       selectClient,
       createClient,
       updateClient,
-      refreshClients
+      refreshClients,
+      refreshClientData
     }}>
       {children}
     </ClientContext.Provider>

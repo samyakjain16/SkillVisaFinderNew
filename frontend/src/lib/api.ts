@@ -75,6 +75,7 @@ export interface OccupationMatch {
 }
 
 export interface UploadCVResponse {
+  document_id: string;
   occupation_matches: OccupationMatch[];
 }
 
@@ -83,6 +84,13 @@ export async function uploadCV(formData: FormData) {
     method: 'POST',
     headers: {}, // Let the browser set Content-Type for FormData
     body: formData,
+  });
+}
+
+// New function to extract applicant data from a document
+export async function extractApplicantData(documentId: string) {
+  return request(`/documents/${documentId}/extract-applicant-data`, {
+    method: 'POST',
   });
 }
 
@@ -124,4 +132,5 @@ export const api = {
   googleLogin,
   register,
   getCurrentUser,
+  extractApplicantData, // Added the new function to the API object
 };

@@ -1,10 +1,13 @@
+// src/components/applicant/applicant-profile-sidebar.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PersonalInfoSection } from '../applicant/applicant-profile/PersonalInfoSection';
 import { EducationSection } from '../applicant/applicant-profile/EducationSection';
 import { ExperienceSection } from '../applicant/applicant-profile/ExperienceSection';
 import { LanguageSection } from '../applicant/applicant-profile/LanguageSection';
+import { useClient } from '@/lib/context/client-context';
+import toast from 'react-hot-toast';
 
 interface PersonalInfo {
   firstName: string;
@@ -52,69 +55,136 @@ interface Employment {
 }
 
 interface ApplicantProfileSidebarProps {
-  applicantData?: {
-    full_name?: string;
-    email?: string;
-    phone?: string;
-    education?: Education[];
-    experience?: Employment[];
-    language?: string;
-  };
   loading?: boolean;
 }
 
-export default function ApplicantProfileSidebar({ 
-  applicantData,
-  loading = false 
-}: ApplicantProfileSidebarProps) {
-  const [personalInfo, setPersonalInfo] = useState<PersonalInfo | undefined>(
-    applicantData ? {
-      firstName: applicantData.full_name?.split(' ')[0] || '',
-      middleName: applicantData.full_name && applicantData.full_name.split(' ').length > 2 ? 
-        applicantData.full_name.split(' ').slice(1, -1).join(' ') : '',
-      lastName: applicantData.full_name?.split(' ').slice(-1)[0] || '',
-      dateOfBirth: '',
-      gender: 'male',
-      maritalStatus: '',
-      nationality: '',
-      passport: {
-        number: '',
-        expiryDate: '',
-        issuingCountry: ''
-      },
-      contact: {
-        email: applicantData.email || '',
-        phone: applicantData.phone || '',
-        address: ''
+const validateGender = (gender: string | undefined): 'male' | 'female' | 'other' => {
+  if (gender === 'female' || gender === 'other') {
+    return gender;
+  }
+  return 'male'; // Default to male for any other value
+};
+
+
+export default function ApplicantProfileSidebar({ loading: propLoading = false }: ApplicantProfileSidebarProps) {
+  const { selectedClient, isLoading: clientLoading, updateClient } = useClient();
+  const [personalInfo, setPersonalInfo] = useState<PersonalInfo | undefined>(undefined);
+  const [educationList, setEducationList] = useState<Education[]>([]);
+  const [experienceList, setExperienceList] = useState<Employment[]>([]);
+
+  // Update state whenever selectedClient changes
+  useEffect(() => {
+    if (selectedClient) {
+      // Use explicit fields if available, otherwise parse from full name
+      const firstName = selectedClient.first_name || 
+        (selectedClient.full_name ? selectedClient.full_name.split(' ')[0] : '');
+      
+      const lastName = selectedClient.last_name || 
+        (selectedClient.full_name && selectedClient.full_name.split(' ').length > 1 
+          ? selectedClient.full_name.split(' ').slice(-1)[0] 
+          : '');
+      
+      const middleName = selectedClient.middle_name || 
+        (selectedClient.full_name && selectedClient.full_name.split(' ').length > 2 
+          ? selectedClient.full_name.split(' ').slice(1, -1).join(' ') 
+          : '');
+      
+      // Update personal info
+      setPersonalInfo({
+        firstName,
+        middleName,
+        lastName,
+        dateOfBirth: selectedClient.date_of_birth || '',
+        gender: validateGender(selectedClient.gender), // Use the validator function
+        maritalStatus: selectedClient.marital_status || '',
+        nationality: selectedClient.nationality || '',
+        passport: {
+          number: selectedClient.passport_number || '',
+          expiryDate: selectedClient.passport_expiry || '',
+          issuingCountry: selectedClient.passport_issuing_country || ''
+        },
+        contact: {
+          email: selectedClient.email || '',
+          phone: selectedClient.phone || '',
+          address: selectedClient.address || ''
+        }
+      });
+
+      // Map education data if available
+      if (selectedClient.education && Array.isArray(selectedClient.education)) {
+        const mappedEducation = selectedClient.education.map((edu: any, index: number) => ({
+          id: String(index),
+          level: edu.level || '',
+          fieldOfStudy: edu.field || '',
+          institutionName: edu.institution || '',
+          country: edu.country || '',
+          startDate: edu.start_date || '',
+          endDate: edu.end_date || ''
+        }));
+        setEducationList(mappedEducation);
       }
-    } : undefined
-  );
 
-  const [educationList, setEducationList] = useState<Education[]>(
-    applicantData?.education || []
-  );
+      // Map experience data if available
+      if (selectedClient.experience && Array.isArray(selectedClient.experience)) {
+        const mappedExperience = selectedClient.experience.map((exp: any, index: number) => ({
+          id: String(index),
+          employerName: exp.company || '',
+          country: exp.country || '',
+          jobTitle: exp.title || '',
+          startDate: exp.start_date || '',
+          endDate: exp.end_date || '',
+          responsibilities: exp.responsibilities || []
+        }));
+        setExperienceList(mappedExperience);
+      }
+    }
+  }, [selectedClient]);
 
-  const [experienceList, setExperienceList] = useState<Employment[]>(
-    applicantData?.experience || []
-  );
-
-  const handlePersonalInfoUpdate = (updatedData: PersonalInfo) => {
+  const handlePersonalInfoUpdate = async (updatedData: PersonalInfo) => {
+    if (!selectedClient?.id) return;
+    
     setPersonalInfo(updatedData);
-    console.log('Updated personal info:', updatedData);
-    // Here you would typically call an API to update the data
+    
+    // Transform the data format to match what the backend expects
+    const clientUpdateData = {
+      first_name: updatedData.firstName,
+      middle_name: updatedData.middleName,
+      last_name: updatedData.lastName,
+      full_name: [updatedData.firstName, updatedData.middleName, updatedData.lastName].filter(Boolean).join(' '),
+      date_of_birth: updatedData.dateOfBirth,
+      gender: updatedData.gender,
+      marital_status: updatedData.maritalStatus,
+      nationality: updatedData.nationality,
+      passport_number: updatedData.passport.number,
+      passport_expiry: updatedData.passport.expiryDate,
+      passport_issuing_country: updatedData.passport.issuingCountry,
+      email: updatedData.contact.email,
+      phone: updatedData.contact.phone,
+      address: updatedData.contact.address
+    };
+    
+    try {
+      // Call the updateClient method from context
+      await updateClient(selectedClient.id, clientUpdateData);
+      toast.success("Personal information updated successfully");
+    } catch (error) {
+      console.error("Failed to update client information:", error);
+      // Show error notification
+      toast.error("Failed to update personal information");
+    }
   };
 
   const handleEducationUpdate = (updatedData: Education[]) => {
     setEducationList(updatedData);
-    console.log('Updated education:', updatedData);
     // Here you would typically call an API to update the data
   };
 
   const handleExperienceUpdate = (updatedData: Employment[]) => {
     setExperienceList(updatedData);
-    console.log('Updated experience:', updatedData);
     // Here you would typically call an API to update the data
   };
+
+  const loading = propLoading || clientLoading;
 
   if (loading) {
     return (
@@ -139,7 +209,7 @@ export default function ApplicantProfileSidebar({
         onUpdate={handleExperienceUpdate}
       />
       <LanguageSection 
-        language={applicantData?.language}
+        language=""
         onEdit={() => console.log('Edit language')}
       />
     </div>

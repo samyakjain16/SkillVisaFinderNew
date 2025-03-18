@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/context/auth-context';
 import { validateFile } from '@/lib/file-utils';
 import { useClient } from '@/lib/context/client-context';
+import { useExtractionStatus } from '@/hooks/useExtractionStatus';
 
 // Define OccupationMatch type
 interface OccupationMatch {
@@ -112,6 +113,22 @@ export default function FileUploader({ setOccupations, setLoading }: FileUploade
       if (setOccupations && result.occupation_matches) {
         setOccupations(result.occupation_matches);
       }
+      // Start applicant data extraction if we have a client
+    if (selectedClient && result.document_id) {
+      const extractionStatus = useExtractionStatus.getState();
+      extractionStatus.setDocumentId(result.document_id);
+      extractionStatus.setExtractionStatus('extracting');
+      
+      try {
+        await api.request(`/documents/${result.document_id}/extract-applicant-data`);
+        extractionStatus.setExtractionStatus('completed');
+      } catch (error) {
+        console.error('Error extracting applicant data:', error);
+        extractionStatus.setExtractionStatus('failed');
+      }
+    }
+
+
     } catch (error: any) {
       const errorMsg = error.message || 'Upload failed. Please try again.';
       setErrorMessage(errorMsg);
